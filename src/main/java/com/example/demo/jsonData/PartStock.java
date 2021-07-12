@@ -25,7 +25,7 @@ public class PartStock {
 
     @JacksonXmlElementWrapper(localName = "PART_STOCK_LINE_LIST")
     @JsonProperty("PART_STOCK_LINE_TEMPL")
-    List<PartStockList> stockLists = new ArrayList<>();
+    List<PartStockLine> stockLines = new ArrayList<>();
 }
 
     /*<?xml version="1.0" encoding="UTF-8"?>

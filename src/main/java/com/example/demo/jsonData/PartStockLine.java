@@ -6,7 +6,7 @@ import lombok.Data;
 
 @JsonPropertyOrder({"lineNo","article","upc","name","qty"})
 @Data
-public class PartStockList {
+public class PartStockLine {
     @JsonProperty("LINE_NO") int lineNo;
     @JsonProperty("ARTICLE") String article;
     @JsonProperty("UPC") String upc;

@@ -3,7 +3,7 @@ package com.example.demo;
 import com.example.demo.jsonData.Detail;
 import com.example.demo.jsonData.Master;
 import com.example.demo.jsonData.PartStock;
-import com.example.demo.jsonData.PartStockList;
+import com.example.demo.jsonData.PartStockLine;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
@@ -40,7 +40,7 @@ class JsonTest {
             stock.setCustomerID(300255);
             stock.setTimeStamp(new Date());
 
-            PartStockList item = new PartStockList();
+            PartStockLine item = new PartStockLine();
             item.setArticle("art");
             item.setLineNo(1);
             item.setName("art name");
@@ -48,7 +48,7 @@ class JsonTest {
             item.setUpc("2030450600");
 //            List<PartStockList> stockList = new ArrayList<>();
 //            stockList.add(item);
-            stock.getStockLists().add(item);
+            stock.getStockLines().add(item);
             System.out.println(xmlMapper.writeValueAsString(stock));
             //deserialize
             xml=xmlMapper.writeValueAsString(stock);
