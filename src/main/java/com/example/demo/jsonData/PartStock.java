@@ -19,7 +19,7 @@ public class PartStock {
     int CustomerID;
     @JsonFormat(
             shape = JsonFormat.Shape.STRING,
-            pattern = "dd-MM-yyyy hh:mm:ss")
+            pattern = "dd-MM-yyyy hh:mm:ss")//,timezone = "Europe/Moscow")
     @JsonProperty("TIME_STAMP")
     Date timeStamp;
 

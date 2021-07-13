@@ -8,11 +8,19 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.fasterxml.jackson.dataformat.xml.ser.ToXmlGenerator;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.Date;
 
+@SpringBootTest
 class JsonTest {
+    @Autowired
+    XmlMapper xmlMapper;
+
+    @DisplayName("Проверка сериализации")
     @Test
     void json() {
         String name="master\" name";
@@ -25,7 +33,7 @@ class JsonTest {
         master.getDetails().add(detail);
         master.setMyDate(null);
 
-        XmlMapper xmlMapper = new XmlMapper();
+//        XmlMapper xmlMapper = new XmlMapper();
         try {
             //#1
 //            xmlMapper.configure(SerializationFeature.WRAP_ROOT_VALUE, true);

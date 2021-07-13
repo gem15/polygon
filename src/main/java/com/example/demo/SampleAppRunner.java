@@ -2,6 +2,7 @@ package com.example.demo;
 
 import com.example.demo.jsonData.Customer;
 import com.example.demo.jsonData.PartStock;
+import com.example.demo.jsonData.PartStockLine;
 import com.exanple.demo.utils.MonitorCommonException;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,9 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Date;
+import java.util.List;
+import java.util.TimeZone;
 
 @Slf4j
 @Component
@@ -35,7 +39,7 @@ public class SampleAppRunner implements ApplicationRunner {
 
     @Autowired
     FTPClient ftp;
-
+    @Autowired
     XmlMapper xmlMapper;//TODO   @Autowired
 
 
@@ -55,7 +59,7 @@ public class SampleAppRunner implements ApplicationRunner {
             // endregion
 
             FTPFileFilter filter = ftpFile -> (ftpFile.isFile() && ftpFile.getName().endsWith(".xml"));
-            xmlMapper = new XmlMapper();
+//            xmlMapper = new XmlMapper();
 
             ftp.changeWorkingDirectory("/in");
 //            System.out.println("Current directory is " + ftp.printWorkingDirectory());
@@ -64,27 +68,35 @@ public class SampleAppRunner implements ApplicationRunner {
                 String dir = file.getName().substring(0, 1).toUpperCase();
                 switch (dir) {
                     case ("P"): {
-                        InputStream remoteInput = ftp.retrieveFileStream(file.getName()); //файл преобразуем в поток
+                        InputStream remoteInput = ftp.retrieveFileStream(file.getName()); //получаем файл в виде потока
                         PartStock stockRq = xmlMapper.readValue(remoteInput, PartStock.class); //  десериализуем (из потока создаём объект)
 
-                        //проверка ВН
-                        int count = jdbcTemplate.queryForObject("SELECT count(*) FROM kb_zak WHERE " +
-                                "id_usr IN ('KB_USR92734', 'KB_USR99992') AND id_klient = ?", Integer.class, stockRq.getCustomerID());
-                        if (count > 0)//TODO обработка ошибок
-                            System.out.println("ВН " + stockRq.getCustomerID() + " не зарегистрирован");
-
-                        //Получить клиента по ВН
-                        MapSqlParameterSource zak = new MapSqlParameterSource().addValue("id", stockRq.getCustomerID());
-                        Customer cust = jdbcTemplate.queryForObject("SELECT ID,ID_SVH,ID_WMS,ID_USR,N_ZAK,ID_KLIENT FROM kb_zak WHERE " +
-                                "id_usr IN ('KB_USR92734', 'KB_USR99992') AND id_klient = ?", new CustomerRowMapper(), stockRq.getCustomerID());
-                        System.out.println("stop");
-/*
-                        SqlParameterSource ftpParam =new MapSqlParameterSource().addValue("id",);
-                        namedParameterJdbcTemplate.query(
+                        //Получить клиента по ВН https://mkyong.com/spring/queryforobject-throws-emptyresultdataaccessexception-when-record-not-found/
+                        Customer customer;
+                        try {
+                             customer = jdbcTemplate.queryForObject("SELECT ID,ID_SVH,ID_WMS,ID_USR,N_ZAK,ID_KLIENT FROM kb_zak WHERE " +
+                                    "id_usr IN ('KB_USR92734', 'KB_USR99992') AND id_klient = ?", new CustomerRowMapper(), stockRq.getCustomerID());
+                        } catch (EmptyResultDataAccessException e) {
+                            throw new MonitorCommonException("ВН " + stockRq.getCustomerID() + " не найден");
+                        }
+                        //Получить остатки
+                        SqlParameterSource ftpParam = new MapSqlParameterSource().addValue("id",customer.getHolderID() );
+                        List<PartStockLine> partStockLines = namedParameterJdbcTemplate.query(//TODO пустой набор не ошибка?
                                 "SELECT * FROM loads WHERE holder_id = :id",
-                                ftpParam,
-*/
-//                        ftp.deleteFile(file.getName());//TODO удаляем принятый файл
+                                ftpParam, (rs, i) -> new PartStockLine(
+                                        rs.getInt("LINENO"),
+                                        rs.getString("ARTICLE"),
+                                        rs.getString("UPC"),
+                                        rs.getString("NAME"),
+                                        rs.getInt("QTY")));
+                        stockRq.setTimeStamp(new Date()); //текущая дата
+                        stockRq.setStockLines(partStockLines);
+
+                        String xml = xmlMapper.writer().writeValueAsString(stockRq);
+                        System.out.println(xml);
+
+
+                        //                        ftp.deleteFile(file.getName());//TODO удаляем принятый файл
                     }
                     break;
                     default:
@@ -94,11 +106,9 @@ public class SampleAppRunner implements ApplicationRunner {
 
 
             ftp.logout();
-        } catch (IOException |
+        } catch (IOException | //TODO
                 MonitorCommonException e) {
             e.printStackTrace();
-        } catch (EmptyResultDataAccessException e) {
-            System.out.println("Не найдено");
         } finally {
             if (ftp.isConnected()) {
                 try {

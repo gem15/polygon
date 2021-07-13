@@ -2,10 +2,14 @@ package com.example.demo.jsonData;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @JsonPropertyOrder({"lineNo","article","upc","name","qty"})
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class PartStockLine {
     @JsonProperty("LINE_NO") int lineNo;
     @JsonProperty("ARTICLE") String article;
