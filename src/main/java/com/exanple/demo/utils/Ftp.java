@@ -4,7 +4,6 @@ import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
 import org.apache.commons.net.ftp.FTPFileFilter;
 import org.apache.commons.net.ftp.FTPReply;
-import org.springframework.stereotype.Component;
 
 import java.io.*;
 import java.util.stream.Collectors;
@@ -25,7 +24,7 @@ public class Ftp {
         this.password = password;
     }
 
-    public void connect() throws MonitorCommonException {
+    public void connect() throws NotificationException {
         ftp = new FTPClient();
         try {
             ftp.connect(server, port);
@@ -44,7 +43,7 @@ public class Ftp {
             }
         } catch (IOException e) {
             //e.printStackTrace();
-            throw new MonitorCommonException(e.getMessage());
+            throw new NotificationException(e.getMessage());
         }
     }
 
