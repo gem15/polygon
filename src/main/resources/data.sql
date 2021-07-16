@@ -15,7 +15,7 @@ Insert into LOADS (HOLDER_ID,LINENO,ARTICLE,UPC,NAME,QTY) values ('10406',7,'MC5
 
 
 Insert into KB_SPROS (ID,N_ZAKAZA,DT_ZAKAZ,ID_ZAK,ID_POK,N_GRUZ,USL) --Pycb daily order
- values ('01023999636','1685295',to_date('14.07.21','DD.MM.RR'),'0102315556','0102314344','STOCK','Суточный заказ Хеллманн по пакетам PS');
+ values ('01023999636','1685295',to_date('15.07.21','DD.MM.RR'),'0102315556','0102314344','STOCK','Суточный заказ Хеллманн по пакетам PS');
 
 Insert into KB_SPROS (ID,N_ZAKAZA,DT_ZAKAZ,ID_ZAK,ID_POK,N_GRUZ,USL) values ('01023999446','1685200',to_date('28.06.21','DD.MM.RR'),'0102314343','0102314343','HELLMAN_STOCK','Суточный заказ Хеллманн по пакетам PS');
 Insert into KB_SPROS (ID,N_ZAKAZA,DT_ZAKAZ,ID_ZAK,ID_POK,N_GRUZ,USL) values ('01023987499','1680370',to_date('23.06.21','DD.MM.RR'),'0102309059','0102309059','HELLMAN_STOCK','Суточный заказ Хеллманн по пакетам PS');

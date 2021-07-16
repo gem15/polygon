@@ -3,6 +3,7 @@ package com.example.demo;
 import com.example.demo.jsonData.Customer;
 import com.example.demo.jsonData.PartStock;
 import com.example.demo.jsonData.PartStockLine;
+import com.example.demo.jsonData.SKU;
 import com.exanple.demo.utils.NotificationException;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -73,16 +74,17 @@ public class SampleAppRunner implements ApplicationRunner {
                 String dir = file.getName().substring(0, 1).toUpperCase();
                 switch (dir) {
                     case ("P"): {
-                        InputStream remoteInput = ftp.retrieveFileStream(file.getName()); //получаем файл в виде потока
+                        InputStream remoteInput = ftp.retrieveFileStream(file.getName()); //загрузка файла в виде потока
+                        if (!ftp.completePendingCommand()) {
+                            throw new NotificationException("Completing Pending Commands Not Successfull");
+                        }
                         PartStock stockRq = xmlMapper.readValue(remoteInput, PartStock.class); //  десериализуем (из потока создаём объект)
-
-                        //Получить клиента по ВН https://mkyong.com/spring/queryforobject-throws-emptyresultdataaccessexception-when-record-not-found/
-                        Customer customer;
+                        Customer customer;//Получить клиента по ВН https://mkyong.com/spring/queryforobject-throws-emptyresultdataaccessexception-when-record-not-found/
                         try {
                             customer = jdbcTemplate.queryForObject("SELECT ID,ID_SVH,ID_WMS,ID_USR,N_ZAK,ID_KLIENT FROM kb_zak WHERE " +
-                                    "id_usr IN ('KB_USR92734', 'KB_USR99992') AND id_klient = ?", new CustomerRowMapper(), stockRq.getCustomerID());
+                                    "id_usr IN ('KB_USR92734', 'KB_USR99992') AND id_klient = ?", new CustomerRowMapper(), stockRq.getClientId());
                         } catch (EmptyResultDataAccessException e) {
-                            throw new NotificationException("ВН " + stockRq.getCustomerID() + " не найден");
+                            throw new NotificationException("ВН " + stockRq.getClientId() + " не найден");
                         }
                         //Получить остатки
                         SqlParameterSource ftpParam = new MapSqlParameterSource().addValue("id", customer.getHolderID());
@@ -98,20 +100,23 @@ public class SampleAppRunner implements ApplicationRunner {
                         stockRq.setStockLines(partStockLines);
 
                         // TODO имя файла PS_VN_TIMESTAMP
-                        String fileName = "PS_" + customer.getClientId() + "_" + new Date().getTime();
-                        // сериализация
-                        String xml = xmlMapper.writer().writeValueAsString(stockRq);
-//                        System.out.println(xml);
+                        String fileName = "PS_" + customer.getClientId() + "_" + new Date().getTime() + ".xml";
+                        String xml = xmlMapper.writer().writeValueAsString(stockRq); // сериализация
 
                         // выгрузка на FTP
-//                        ftp.changeWorkingDirectory("/respond"); //FIXME из таблицы
+                        System.out.println("Current directory is " + ftp.printWorkingDirectory());//remove me
+                        ftp.changeWorkingDirectory("/response"); //FIXME из таблицы
+                        System.out.println("Current directory is " + ftp.printWorkingDirectory());//remove me
+
                         is = new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8));
                         boolean ok = ftp.storeFile(fileName, is);
                         is.close();
-                        if (ok) { //TODO обсудить логику/последовательность
+                        ftp.changeWorkingDirectory("/in"); //FIXME из таблицы вернуть
+                        if (ok) {
+                            //TODO обсудить логику/последовательность
                             //Поиск/создание суточного заказа //TODO поле detail ? обсудить HELLMAN_STOCK
                             String dailyOrderSql = "SELECT sp.id FROM kb_spros sp WHERE sp.n_gruz = 'STOCK' AND trunc(sp.dt_zakaz) = trunc(SYSDATE) AND sp.id_zak = ?";
-                            String dailyOrderId = null;
+                            String dailyOrderId = "";//String.valueOf(++j);//fixme remove me
                             try {
                                 dailyOrderId = jdbcTemplate.queryForObject(dailyOrderSql, String.class, customer.getId());
                             } catch (EmptyResultDataAccessException e) {
@@ -136,26 +141,40 @@ VALUES
 */
 //                            Number newId = simpleJdbcInsert.executeAndReturnKey(params);
                                 KeyHolder keyHolder = simpleJdbcInsert.executeAndReturnKeyHolder(params);
-//                            dailyOrderId = keyHolder.getKeyAs(String.class);
+                                dailyOrderId = keyHolder.getKeyAs(String.class);
+//                                dailyOrderId= String.valueOf(++j);//fixme remove me
                             }
 
                             // добавляем событие 4301 в заказ Получено входящее сообщение
                             jdbcTemplate.update("INSERT INTO kb_sost (id_obsl, dt_sost, dt_sost_end, id_sost,  sost_prm, id_isp)VALUES (?, ?, ?, ?,?,?)",
-                                    dailyOrderId, new Date(), new Date(), "KB_USL99770", new Date(), new Date(), "Получен запрос PART_STOCK", "010277043");
+                                    dailyOrderId, new Date(), new Date(), "KB_USL99770", "Получен запрос PART_STOCK", "010277043");
                             // добавляем 4302 подтверждение что по данному заказу мы отправили уведомление
                             jdbcTemplate.update(
                                     "INSERT INTO kb_sost (id_obsl, id_sost, dt_sost, dt_sost_end, sost_prm) VALUES (?, ?, ?, ?,?)",
                                     dailyOrderId, "KB_USL99771", new Date(), new Date(), fileName);
 
                             //TODO ftp.deleteFile(file.getName());//TODO удаляем принятый файл
-                             log.info("Uploaded " + fileName);
+                            log.info("Uploaded " + fileName);
                         } else {
                             throw new NotificationException("Не удалось выгрузить " + fileName);
                         }
+                        System.out.println(xml);
                         System.out.println("stop");
-                   }
+                    }
                     break;
                     case ("S"): {
+                        InputStream remoteInput = ftp.retrieveFileStream(file.getName()); //загрузка файла в виде потока
+                        if (!ftp.completePendingCommand()) {
+                            throw new NotificationException("Completing Pending Commands Not Successfull");
+                        }
+                        SKU sku = xmlMapper.readValue(remoteInput, SKU.class);
+                        Customer customer;//Получить клиента по ВН https://mkyong.com/spring/queryforobject-throws-emptyresultdataaccessexception-when-record-not-found/
+                        try {
+                            customer = jdbcTemplate.queryForObject("SELECT ID,ID_SVH,ID_WMS,ID_USR,N_ZAK,ID_KLIENT FROM kb_zak WHERE " +
+                                    "id_usr IN ('KB_USR92734', 'KB_USR99992') AND id_klient = ?", new CustomerRowMapper(), sku.getClientId());
+                        } catch (EmptyResultDataAccessException e) {
+                            throw new NotificationException("ВН " + sku.getClientId() + " не найден");
+                        }
 
                     }
                     break;
@@ -171,11 +190,11 @@ VALUES
                 }
             }
 
-
             ftp.logout();
-        } catch (IOException | //TODO
-                NotificationException e) {
+        } catch (IOException e) {
             e.printStackTrace();
+        } catch (NotificationException e) {
+            log.error(e.getMessage() + ". Код " + ftp.getReplyCode());
         } finally {
             if (ftp.isConnected()) {
                 try {

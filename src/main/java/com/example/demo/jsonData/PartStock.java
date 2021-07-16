@@ -16,7 +16,7 @@ import java.util.List;
 @Data
 public class PartStock {
     @JsonProperty("VN")
-    int CustomerID;
+    int clientId;
     @JsonFormat(
             shape = JsonFormat.Shape.STRING,
             pattern = "dd-MM-yyyy hh:mm:ss")//,timezone = "Europe/Moscow")

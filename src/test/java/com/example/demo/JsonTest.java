@@ -45,7 +45,7 @@ class JsonTest {
             System.out.println(xml);
             //#2
             PartStock stock=new PartStock();
-            stock.setCustomerID(300255);
+            stock.setClientId(300255);
             stock.setTimeStamp(new Date());
 
             PartStockLine item = new PartStockLine();
