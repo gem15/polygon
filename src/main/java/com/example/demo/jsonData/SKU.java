@@ -20,7 +20,7 @@ public class SKU {
      * unit of measure
      */
     @JsonProperty("MEASURE") String measure;
-    @JsonProperty("RODUCT_LIFE") String productLife;
+    @JsonProperty("PRODUCT_LIFE") String productLife;
     @JsonProperty("STORAGE_POS") String storagePos;
     @JsonProperty("BILLING_CLASS") String billingClass;
 

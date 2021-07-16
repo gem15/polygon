@@ -20,8 +20,10 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.TransactionStatus;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -34,7 +36,8 @@ import java.util.List;
 @Component
 //@Repository
 public class SampleAppRunner implements ApplicationRunner {
-
+    @Autowired
+    private DataSourceTransactionManager txManager;
     @Autowired
     JdbcTemplate jdbcTemplate;
     @Autowired
@@ -73,7 +76,7 @@ public class SampleAppRunner implements ApplicationRunner {
             for (FTPFile file : listFile) {
                 String dir = file.getName().substring(0, 1).toUpperCase();
                 switch (dir) {
-                    case ("P"): {
+                    case ("P???"): { //TODO case ("P???")
                         InputStream remoteInput = ftp.retrieveFileStream(file.getName()); //загрузка файла в виде потока
                         if (!ftp.completePendingCommand()) {
                             throw new NotificationException("Completing Pending Commands Not Successfull");
@@ -99,15 +102,12 @@ public class SampleAppRunner implements ApplicationRunner {
                         stockRq.setTimeStamp(new Date()); //текущая дата
                         stockRq.setStockLines(partStockLines);
 
-                        // TODO имя файла PS_VN_TIMESTAMP
+                        // TODO имя файла PS_VN_TIMESTAMP/ PS from field prefix
                         String fileName = "PS_" + customer.getClientId() + "_" + new Date().getTime() + ".xml";
                         String xml = xmlMapper.writer().writeValueAsString(stockRq); // сериализация
 
                         // выгрузка на FTP
-                        System.out.println("Current directory is " + ftp.printWorkingDirectory());//remove me
                         ftp.changeWorkingDirectory("/response"); //FIXME из таблицы
-                        System.out.println("Current directory is " + ftp.printWorkingDirectory());//remove me
-
                         is = new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8));
                         boolean ok = ftp.storeFile(fileName, is);
                         is.close();
@@ -116,12 +116,12 @@ public class SampleAppRunner implements ApplicationRunner {
                             //TODO обсудить логику/последовательность
                             //Поиск/создание суточного заказа //TODO поле detail ? обсудить HELLMAN_STOCK
                             String dailyOrderSql = "SELECT sp.id FROM kb_spros sp WHERE sp.n_gruz = 'STOCK' AND trunc(sp.dt_zakaz) = trunc(SYSDATE) AND sp.id_zak = ?";
-                            String dailyOrderId = "";//String.valueOf(++j);//fixme remove me
+                            String dailyOrderId;//String.valueOf(++j);//fixme remove me
                             try {
                                 dailyOrderId = jdbcTemplate.queryForObject(dailyOrderSql, String.class, customer.getId());
                             } catch (EmptyResultDataAccessException e) {
-                                //TODO доделать
-                                SimpleJdbcInsert simpleJdbcInsert = new SimpleJdbcInsert(jdbcTemplate).withTableName("tab").usingGeneratedKeyColumns("id");
+                                //FIXME доделать .withTableName("tab")
+                                SimpleJdbcInsert simpleJdbcInsert = new SimpleJdbcInsert(jdbcTemplate).withTableName("kb_spros").usingGeneratedKeyColumns("id");
                                 MapSqlParameterSource params = new MapSqlParameterSource();
                                 params.addValue("dt_zakaz", new Date())
                                         .addValue("id_zak", customer.getId())
@@ -153,7 +153,7 @@ VALUES
                                     "INSERT INTO kb_sost (id_obsl, id_sost, dt_sost, dt_sost_end, sost_prm) VALUES (?, ?, ?, ?,?)",
                                     dailyOrderId, "KB_USL99771", new Date(), new Date(), fileName);
 
-                            //TODO ftp.deleteFile(file.getName());//TODO удаляем принятый файл
+                            //fixme ftp.deleteFile(file.getName());//TODO удаляем принятый файл
                             log.info("Uploaded " + fileName);
                         } else {
                             throw new NotificationException("Не удалось выгрузить " + fileName);
@@ -176,6 +176,56 @@ VALUES
                             throw new NotificationException("ВН " + sku.getClientId() + " не найден");
                         }
 
+                        // передача номенклатуры
+                        jdbcTemplate.update("DELETE FROM KB_T_ARTICLE");
+                        // е.и. из справочника
+                        String uofm ="";
+                        try {
+                            uofm = jdbcTemplate.queryForObject("SELECT val_id  FROM sv_hvoc  " +
+                                    "WHERE voc_id = 'KB_MEA' AND UPPER(val_short) = UPPER(?)", String.class, sku.getMeasure());
+                        } catch (EmptyResultDataAccessException e) {
+                            uofm = null;
+                        }
+                        //поиск/создание суточного заказа
+                        String dailyOrderSql = "SELECT sp.id FROM kb_spros sp WHERE sp.n_gruz = 'STOCK' AND trunc(sp.dt_zakaz) = trunc(SYSDATE) AND sp.id_zak = ?";
+                        String dailyOrderId;
+                        try {
+                            dailyOrderId = jdbcTemplate.queryForObject(dailyOrderSql, String.class, customer.getId());
+                        } catch (EmptyResultDataAccessException e) {
+                            //FIXME доделать .withTableName("tab")
+                            SimpleJdbcInsert simpleJdbcInsert = new SimpleJdbcInsert(jdbcTemplate).withTableName("kb_spros").usingGeneratedKeyColumns("id");
+                            MapSqlParameterSource params = new MapSqlParameterSource();
+                            params.addValue("dt_zakaz", new Date())
+                                    .addValue("id_zak", customer.getId())
+                                    .addValue("id_pok", customer.getId())
+                                    .addValue("n_gruz", "SKU")
+                                    .addValue("usl", "Суточный заказ по пакетам SKU");
+                            KeyHolder keyHolder = simpleJdbcInsert.executeAndReturnKeyHolder(params);
+                            dailyOrderId = keyHolder.getKeyAs(String.class);
+                        }
+/*
+    INSERT INTO KB_T_ARTICLE
+      (id_sost, comments, measure, marker, str_sr_godn, storage_pos, tip_tov) -- str_mu_code,categ, MARKER)
+    VALUES
+      (article, art_name, v_uof, upc, control_date, storage_pos, billing_class);
+      '/AddingGoods/PRODUCT_LIFE') control_date, -
+'/AddingGoods/STORAGE_POS') storage_pos, --
+'/AddingGoods/BILLING_CLASS') billing_class
+
+ */
+
+                        //TODO txManager.commit(TransactionStatus new );
+                        jdbcTemplate.update("INSERT INTO KB_T_ARTICLE (id_sost, comments, measure, marker, str_sr_godn, storage_pos, tip_tov) VALUES (?, ?, ?, ?,?,?,?)",
+                                sku.getArticle(), sku.getName(),uofm,sku.getUpc(),sku.getProductLife(),sku.getStoragePos(),sku.getBillingClass());
+//TODO UPDATE KB_T_ARTICLE SET COMMENTS = REPLACE(REPLACE(RTRIM(LT --- ???
+
+                        // TODO kb_pack.wms3_updt_sku(l_id_zak, v_prf_wms, p_err);
+
+                        // добавляем событие 4301 в заказ Получено входящее сообщение
+                        jdbcTemplate.update("INSERT INTO kb_sost (id_obsl, dt_sost, dt_sost_end, id_sost,  sost_prm, id_isp)VALUES (?, ?, ?, ?,?,?)",
+                                dailyOrderId, new Date(), new Date(), "KB_USL99770", "Артикул"+ sku.getArticle() + " отправлен в СОХ", "010277043");
+
+                        System.out.println(customer.getClientId());
                     }
                     break;
                     case ("I"): {
