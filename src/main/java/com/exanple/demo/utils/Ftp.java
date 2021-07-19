@@ -24,7 +24,7 @@ public class Ftp {
         this.password = password;
     }
 
-    public void connect() throws NotificationException {
+    public void connect() throws FTPException {
         ftp = new FTPClient();
         try {
             ftp.connect(server, port);
@@ -43,7 +43,7 @@ public class Ftp {
             }
         } catch (IOException e) {
             //e.printStackTrace();
-            throw new NotificationException(e.getMessage());
+            throw new FTPException(e.getMessage());
         }
     }
 

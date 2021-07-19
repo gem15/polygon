@@ -1,4 +1,13 @@
 
+INSERT into msg_type(NAME,INOUT_ID) VALUES('Заказ на поставку',1);
+INSERT into msg_type(NAME,INOUT_ID) VALUES('Заказ на отгрузку',2);
+INSERT into msg_type(NAME,INOUT_ID) VALUES('Подтверждение поставки',3);
+INSERT into msg_type(NAME,INOUT_ID) VALUES('Подтверждение отгрузки',4);
+INSERT into msg_type(NAME,INOUT_ID) VALUES('Справочник SKU',5);
+INSERT into msg_type(NAME,INOUT_ID) VALUES('Справосник Part Stock',6);
+INSERT into msg_type(NAME,INOUT_ID) VALUES('Подтверждение отгрузки',7);
+
+
 Insert into KB_ZAK (ID,ID_SVH,ID_WMS,ID_USR,N_ZAK,ID_KLIENT)
  values ('0102315556','KB_SVH95476','10406','KB_USR99992','ТОРГОВЫЙ ДОМ РУСЬ','300254');
 Insert into KB_ZAK (ID,ID_SVH,ID_WMS,ID_USR,N_ZAK,ID_KLIENT)
